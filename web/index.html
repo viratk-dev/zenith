@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#08080c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Zenith — Virat's AI Agent</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #08080c;
+    --bg2: #0e0e14;
+    --surface: #14141c;
+    --surface2: #1a1a24;
+    --border: rgba(255,255,255,0.07);
+    --text: #f2f2f5;
+    --muted: #8b8b98;
+    --accent: #7c5cff;
+    --accent2: #00e5cc;
+    --accent-grad: linear-gradient(135deg, #7c5cff, #5a3ee0);
+    --green: #22c55e;
+    --red: #ef4444;
+    --radius: 20px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex; flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+    background: rgba(8,8,12,0.85);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .avatar {
+    width: 42px; height: 42px; border-radius: 14px;
+    background: var(--accent-grad);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; color: #fff;
+    box-shadow: 0 4px 16px rgba(124,92,255,0.4);
+    flex-shrink: 0;
+  }
+  .title-wrap { flex: 1; min-width: 0; }
+  .title { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex-shrink: 0; transition: background 0.3s; }
+  .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .icon-btn:active { transform: scale(0.92); background: var(--surface2); }
+
+  /* ---------- Chat ---------- */
+  #chat {
+    flex: 1; overflow-y: auto; padding: 16px 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  #chat::-webkit-scrollbar { width: 0; }
+
+  .msg { display: flex; gap: 8px; max-width: 88%; animation: slideIn 0.25s ease-out; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .bubble {
+    padding: 11px 15px; border-radius: 20px;
+    font-size: 15px; line-height: 1.5; word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .msg.user .bubble {
+    background: var(--accent-grad); color: #fff;
+    border-bottom-right-radius: 6px;
+    box-shadow: 0 2px 12px rgba(124,92,255,0.25);
+  }
+  .msg.ai .bubble {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 6px;
+  }
+  .msg .mini-avatar {
+    width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+    background: var(--accent-grad); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #fff; align-self: flex-end;
+  }
+  .msg .time { font-size: 10px; color: var(--muted); margin-top: 4px; padding: 0 4px; }
+
+  /* Typing indicator */
+  .typing .bubble { display: flex; gap: 5px; padding: 14px 18px; align-items: center; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%,60%,100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+  /* Code blocks */
+  .code-wrap { margin: 8px 0 2px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #0a0a10; }
+  .code-head { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; background: rgba(255,255,255,0.03); font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .copy-btn { background: none; border: none; color: var(--accent2); font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 6px; }
+  .copy-btn:active { opacity: 0.6; }
+  pre { padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.55; font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: #d4d4dc; }
+
+  /* Approval cards */
+  .approval {
+    background: var(--surface); border: 1px solid rgba(124,92,255,0.3);
+    border-radius: 18px; padding: 16px; margin: 4px 0;
+    box-shadow: 0 4px 24px rgba(124,92,255,0.12);
+    animation: slideIn 0.3s ease-out;
+  }
+  .approval .ap-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .approval .ap-tool { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .approval .ap-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; word-break: break-word; }
+  .ap-btns { display: flex; gap: 10px; }
+  .ap-btns button {
+    flex: 1; padding: 13px; border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+  }
+  .ap-btns button:active { transform: scale(0.96); }
+  .ap-yes { background: var(--green); color: #fff; box-shadow: 0 2px 12px rgba(34,197,94,0.3); }
+  .ap-no { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .ap-done { text-align: center; padding: 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+
+  /* Welcome */
+  .welcome { text-align: center; padding: 32px 20px 16px; animation: slideIn 0.4s ease-out; }
+  .welcome .big-z {
+    width: 72px; height: 72px; border-radius: 22px; margin: 0 auto 16px;
+    background: var(--accent-grad); display: flex; align-items: center; justify-content: center;
+    font-size: 34px; font-weight: 800; color: #fff;
+    box-shadow: 0 8px 32px rgba(124,92,255,0.45);
+  }
+  .welcome h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+  .welcome p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .chips { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .chip {
+    padding: 9px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    cursor: pointer; transition: transform 0.12s, border-color 0.12s;
+  }
+  .chip:active { transform: scale(0.95); border-color: var(--accent); }
+
+  /* ---------- Input bar ---------- */
+  .input-area {
+    padding: 10px 14px calc(10px + var(--safe-b));
+    background: rgba(8,8,12,0.9);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
+  #input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 24px; padding: 13px 18px; color: var(--text);
+    font-size: 16px; font-family: inherit; resize: none; outline: none;
+    max-height: 120px; line-height: 1.4;
+    transition: border-color 0.2s;
+  }
+  #input:focus { border-color: rgba(124,92,255,0.5); }
+  #input::placeholder { color: #55555f; }
+  #send {
+    width: 48px; height: 48px; border-radius: 50%; border: none; flex-shrink: 0;
+    background: var(--accent-grad); color: #fff; font-size: 20px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(124,92,255,0.4);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  #send:active { transform: scale(0.9); }
+  #send:disabled { opacity: 0.4; box-shadow: none; }
+
+  /* ---------- Settings sheet ---------- */
+  .sheet-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px); z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .sheet-back.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 51;
+    background: var(--bg2); border-radius: 24px 24px 0 0;
+    border-top: 1px solid var(--border);
+    padding: 12px 20px calc(24px + var(--safe-b));
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 85dvh; overflow-y: auto;
+  }
+  .sheet.open { transform: none; }
+  .grabber { width: 40px; height: 4px; border-radius: 2px; background: #33333d; margin: 0 auto 16px; }
+  .sheet h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .sheet .sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.3px; }
+  .field input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 13px 15px; color: var(--text);
+    font-size: 15px; font-family: ui-monospace, monospace; outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: rgba(124,92,255,0.5); }
+  .save-btn {
+    width: 100%; padding: 15px; border: none; border-radius: 16px;
+    background: var(--accent-grad); color: #fff;
+    font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px;
+    box-shadow: 0 4px 20px rgba(124,92,255,0.35);
+    transition: transform 0.12s;
+  }
+  .save-btn:active { transform: scale(0.98); }
+
+  /* Toast */
+  #toast {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 70px); left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600;
+    z-index: 100; opacity: 0; pointer-events: none; transition: all 0.3s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5); white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+
+  @media (min-width: 700px) {
+    #chat { max-width: 720px; margin: 0 auto; width: 100%; }
+    .input-area .input-row { max-width: 720px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="avatar">Z</div>
+  <div class="title-wrap">
+    <div class="title">Zenith</div>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Not connected</span></div>
+  </div>
+  <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+</header>
+
+<div id="chat"></div>
+
+<div class="input-area">
+  <div class="input-row">
+    <textarea id="input" rows="1" placeholder="Message Zenith…"></textarea>
+    <button id="send" aria-label="Send">↑</button>
+  </div>
+</div>
+
+<div class="sheet-back" id="sheetBack"></div>
+<div class="sheet" id="sheet">
+  <div class="grabber"></div>
+  <h3>Connection</h3>
+  <p class="sub">Enter your Upstash Redis details once. They're saved on this device only.</p>
+  <div class="field">
+    <label>REDIS URL</label>
+    <input id="cfgUrl" placeholder="https://….upstash.io" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field">
+    <label>REST TOKEN</label>
+    <input id="cfgToken" placeholder="Paste token" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field">
+    <label>YOUR PHONE</label>
+    <input id="cfgPhone" placeholder="919296933126" inputmode="numeric" autocomplete="off" spellcheck="false">
+  </div>
+  <button class="save-btn" id="saveCfg">Connect ⚡</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ---------- Config ----------
+let cfg = JSON.parse(localStorage.getItem('zenith_cfg') || '{}');
+(function autoSetup() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const url = q.get('url'), token = q.get('token'), phone = q.get('phone');
+    if (url && token && phone) {
+      cfg = { url: url.replace(/\/$/, ''), token, phone: phone.replace(/\D/g, '') };
+      localStorage.setItem('zenith_cfg', JSON.stringify(cfg));
+      history.replaceState(null, '', location.pathname);
+    }
+  } catch {}
+})();
+
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+function setStatus(on, text) {
+  statusDot.classList.toggle('on', on);
+  statusText.textContent = text;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ---------- Redis ----------
+async function redis(path, body) {
+  if (!cfg.url || !cfg.token) throw new Error('not-configured');
+  const r = await fetch(cfg.url + path, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!r.ok) throw new Error('redis-' + r.status);
+  return r.json();
+}
+const up = (key, body) => redis('/' + key, body);
+
+// ---------- Chat UI ----------
+function now() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function scrollDown() { chat.scrollTop = chat.scrollHeight; }
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderMarkdown(text) {
+  // Code blocks first
+  let html = esc(text);
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
+    const id = 'c' + Math.random().toString(36).slice(2, 8);
+    return `<div class="code-wrap"><div class="code-head"><span>${lang || 'code'}</span><button class="copy-btn" onclick="copyCode('${id}',this)">Copy</button></div><pre id="${id}">${code.replace(/^\n/, '').replace(/\n$/, '')}</pre></div>`;
+  });
+  // Inline code
+  html = html.replace(/`([^`\n]+)`/g, '<code style="background:rgba(124,92,255,0.15);padding:2px 6px;border-radius:6px;font-size:13px;font-family:ui-monospace,monospace;">$1</code>');
+  // Bold
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return html;
+}
+window.copyCode = function(id, btn) {
+  const t = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(t).then(() => {
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+};
+
+function addMsg(who, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + who;
+  const av = who === 'ai' ? '<div class="mini-avatar">Z</div>' : '';
+  d.innerHTML = av + `<div style="min-width:0"><div class="bubble">${renderMarkdown(text)}</div><div class="time">${now()}</div></div>`;
+  chat.appendChild(d);
+  scrollDown();
+  return d;
+}
+
+function showTyping() {
+  const d = document.createElement('div');
+  d.className = 'msg ai typing';
+  d.id = 'typing';
+  d.innerHTML = '<div class="mini-avatar">Z</div><div class="bubble"><span></span><span></span><span></span></div>';
+  chat.appendChild(d);
+  scrollDown();
+}
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+function showWelcome() {
+  chat.innerHTML = `
+    <div class="welcome">
+      <div class="big-z">Z</div>
+      <h2>Hey Virat! 👋</h2>
+      <p>I'm Zenith, your personal AI agent.<br>Ask me anything, or tap a suggestion:</p>
+      <div class="chips">
+        <button class="chip" onclick="quickAsk('What can you do?')">✨ What can you do?</button>
+        <button class="chip" onclick="quickAsk('Write a Python script to rename files')">🐍 Python script</button>
+        <button class="chip" onclick="quickAsk('Remind me in 1 hour to drink water')">⏰ Set reminder</button>
+      </div>
+    </div>`;
+}
+window.quickAsk = function(q) { input.value = q; send(); };
+
+// ---------- Approval cards ----------
+function showApproval(ap) {
+  const d = document.createElement('div');
+  d.className = 'approval';
+  d.innerHTML = `
+    <div class="ap-label">⚠️ Approval needed</div>
+    <div class="ap-tool">${esc(ap.tool || 'Action')}</div>
+    <div class="ap-desc">${esc(ap.desc || ap.detail || '')}</div>
+    <div class="ap-btns">
+      <button class="ap-yes" onclick="resolveApproval('${ap.id}', true, this)">✓ Yes</button>
+      <button class="ap-no" onclick="resolveApproval('${ap.id}', false, this)">✕ No</button>
+    </div>`;
+  chat.appendChild(d);
+  scrollDown();
+}
+window.resolveApproval = async function(id, ok, btn) {
+  const card = btn.closest('.approval');
+  card.querySelector('.ap-btns').innerHTML = `<div class="ap-done">${ok ? '✓ Approved' : '✕ Denied'}</div>`;
+  try {
+    await up('lpush/zenith:appr_resolve', [{ id, ok }]);
+  } catch { toast('Failed to send — check connection'); }
+  scrollDown();
+};
+
+// ---------- Send / poll ----------
+let sending = false;
+async function send() {
+  const text = input.value.trim();
+  if (!text || sending) return;
+  if (!cfg.phone) { openSheet(); toast('Connect first ⚙️'); return; }
+  sending = true; sendBtn.disabled = true;
+  input.value = ''; input.style.height = 'auto';
+  addMsg('user', text);
+  showTyping();
+  try {
+    await up('lpush/zenith:inbox', [{ from: cfg.phone, text, ts: Date.now() }]);
+  } catch {
+    hideTyping();
+    addMsg('ai', '⚠️ Not connected. Tap ⚙️ to set up.');
+    sending = false; sendBtn.disabled = false;
+    return;
+  }
+  // Replies arrive via poll loop
+}
+
+async function poll() {
+  if (!cfg.url || !cfg.token || !cfg.phone) { setStatus(false, 'Not connected'); return; }
+  try {
+    // Replies
+    const ro = await up('rpop/zenith:outbox:' + cfg.phone);
+    if (ro.result) {
+      hideTyping();
+      const m = JSON.parse(ro.result);
+      addMsg('ai', m.text || m.reply || JSON.stringify(m));
+      sending = false; sendBtn.disabled = false;
+    }
+    // Approvals
+    const ra = await up('rpop/zenith:appr_push:' + cfg.phone);
+    if (ra.result) {
+      const ap = JSON.parse(ra.result);
+      showApproval(ap);
+    }
+    setStatus(true, 'Connected ⚡');
+  } catch {
+    setStatus(false, 'Connection lost');
+  }
+}
+
+// ---------- Settings sheet ----------
+const sheet = document.getElementById('sheet');
+const sheetBack = document.getElementById('sheetBack');
+function openSheet() {
+  document.getElementById('cfgUrl').value = cfg.url || '';
+  document.getElementById('cfgToken').value = cfg.token || '';
+  document.getElementById('cfgPhone').value = cfg.phone || '';
+  sheet.classList.add('open'); sheetBack.classList.add('open');
+}
+function closeSheet() { sheet.classList.remove('open'); sheetBack.classList.remove('open'); }
+document.getElementById('settingsBtn').onclick = openSheet;
+sheetBack.onclick = closeSheet;
+document.getElementById('saveCfg').onclick = async () => {
+  const url = document.getElementById('cfgUrl').value.trim().replace(/\/$/, '');
+  const token = document.getElementById('cfgToken').value.trim();
+  const phone = document.getElementById('cfgPhone').value.replace(/\D/g, '');
+  if (!url || !token || !phone) { toast('Fill all three fields'); return; }
+  cfg = { url, token, phone };
+  localStorage.setItem('zenith_cfg', JSON.stringify(cfg));
+  closeSheet(); toast('Connected! ⚡');
+  setStatus(true, 'Connected ⚡');
+  // Test connection
+  try { await up('ping'); } catch { toast('Check URL / token'); setStatus(false, 'Check settings'); }
+};
+
+// ---------- Events ----------
+sendBtn.onclick = send;
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+
+// ---------- Init ----------
+showWelcome();
+if (cfg.url && cfg.token && cfg.phone) setStatus(true, 'Connected ⚡');
+setInterval(poll, 2500);
+poll();
+</script>
+</body>
+</html>
