@@ -1,0 +1,8 @@
+node_modules/
+dist/
+config.yaml
+data/
+*.log
+.env
+# web app build
+web/.DS_Store

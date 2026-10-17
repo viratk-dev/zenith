@@ -1,0 +1,61 @@
+# virat-agent — example configuration
+# Copy to config.yaml and fill in your values.
+
+# --- Owner ---
+# Only this phone number (WhatsApp JID or plain digits) can control the agent
+# and approve sensitive actions.
+owner:
+  phone: "919999999999"   # Virat's WhatsApp number, digits only with country code
+
+# --- LLM provider ---
+# Default is free: local Ollama. No API key needed.
+llm:
+  provider: "ollama"          # "ollama" | "openai-compatible"
+  model: "llama3.1:8b"        # any model you have pulled in Ollama
+  baseUrl: "http://127.0.0.1:11434"
+  # For openai-compatible (OpenRouter, etc.):
+  # provider: "openai-compatible"
+  # baseUrl: "https://openrouter.ai/api/v1"
+  # apiKey: "sk-..."          # or set VIRAT_AGENT_LLM_KEY env var
+  # model: "meta-llama/llama-3.1-8b-instruct:free"
+  maxToolIterations: 8
+  timeoutMs: 120000
+
+# --- WhatsApp ---
+whatsapp:
+  # Session data (QR pairing state) is stored here after first pairing.
+  sessionDir: "./data/wa-session"
+  # Print QR in terminal on first run. Scan with WhatsApp > Linked devices.
+  printQr: true
+
+# --- Permissions (global layer) ---
+# Tools not listed here default to "deny".
+permissions:
+  global:
+    allow: ["web_search", "http_fetch", "notes", "file_read", "reminders"]
+    # "deny" always wins over "allow".
+    deny: []
+  # Tools in this list ALWAYS need the owner's explicit "yes" on WhatsApp
+  # before they run, no matter what the allow lists say.
+  requireApproval:
+    - "exec_shell"
+    - "file_write"
+    - "reminders"   # reminders that send messages later need approval at creation
+
+# --- Memory ---
+memory:
+  dir: "./data/memory"   # MEMORY.md + daily logs + people/ live here
+
+# --- Gateway ---
+gateway:
+  host: "127.0.0.1"
+  port: 18789
+  # Shared secret for local RPC callers (optional but recommended).
+  # Or set VIRAT_AGENT_GATEWAY_SECRET env var.
+  secret: "change-me-to-something-long"
+
+# --- Workspace sandbox ---
+# file_read / file_write tools can ONLY touch paths under these roots.
+sandbox:
+  roots:
+    - "./data/workspace"
